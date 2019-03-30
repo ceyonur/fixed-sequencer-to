@@ -38,7 +38,7 @@ class Sender(P2P):
                 print('Replier is not the fixed-sequencer!')
                 return False
             else:
-                self.broadcast_message(message_data)
+                self.broadcast_message(message.data)
                 return True
 
     """Broadcasts the message with sequence to the destinations."""
@@ -108,7 +108,10 @@ class Destination(P2P):
             self.next_deliver = min_pending_sequence
 
     def deliver(self, message):
-        print('The message is: ' + str(message[0]) + ' sequence is: ' + str(message[1]))
+        addr_str = str(self.p2p_addr)
+        message_str = str(message[0])
+        sequence_str = str(message[1])
+        print(addr_str + '--' + 'message: ' + message_str + ' sequence is: ' + sequence_str)
 
 if __name__ == '__main__':
     sq = Sequencer(5001)

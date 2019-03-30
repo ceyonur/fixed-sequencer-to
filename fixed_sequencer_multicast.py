@@ -14,6 +14,7 @@ class Sender(P2P):
         super(Sender, self).__init__(socket)
         self.sequencer_addr = None
         self.destination_groups = defaultdict(list)
+        self.lock = threading.Lock()
 
     """Adds new fixed sequencer"""
     def add_sequencer(self, sequencer_addr_str):
@@ -30,8 +31,10 @@ class Sender(P2P):
 
     """Sends a new request sequence to sequencer"""
     def request_sequence(self, message_data, group_id):
+        self.lock.acquire()
         multicast_message = MulticastMessage(message_data, group_id)
         self.query(self.sequencer_addr, Message(MessageType.REQUEST_SEQUENCE, multicast_message, self.p2p_addr))
+        self.lock.release()
 
     """The main function for this class to take an action on listened messages.
     Handles response of previous sequence request sent to the requester,
@@ -82,7 +85,7 @@ class Sequencer(P2P):
 
 """Destination class"""
 class Destination(P2P):
-    """Initializes the Destination object with next_deliver sequence 1, an empty pending list
+    """Initializes the Destination object with next_deliver sequence 0, an empty pending list
     and lock to provide concurreny between multiple sender messages"""
     def __init__(self, socket):
         super(Destination, self).__init__(socket)
@@ -117,7 +120,10 @@ class Destination(P2P):
             self.next_deliver = min_pending_sequence
 
     def deliver(self, message):
-        print('The message is: ' + str(message[0]) + ' sequence is: ' + str(message[1]))
+        addr_str = str(self.p2p_addr)
+        message_str = str(message[0])
+        sequence_str = str(message[1])
+        print(addr_str + '--' + 'm: ' +  message_str + ' sequence is: ' + sequence_str)
 
 if __name__ == '__main__':
     sq = Sequencer(5001)
@@ -136,9 +142,9 @@ if __name__ == '__main__':
     sd.add_destination("127.0.0.1:5005", 2)
 
 
-    sd.request_sequence("hello",1)
-    sd.request_sequence("hello2",1)
-    sd.request_sequence("hello3",2)
+    sd.request_sequence("hello",1) # group 1, seq:0 for g1
+    sd.request_sequence("hello2",1) # group 1, seq:1 for g1
+    sd.request_sequence("hello3",2) # group 2, seq:0 for g2
 
     sd2 = Sender(5004)
     sd2.start_threaded()
@@ -148,6 +154,6 @@ if __name__ == '__main__':
     sd2.add_destination("127.0.0.1:5003", 1)
     sd2.add_destination("127.0.0.1:5005", 2)
 
-    sd2.request_sequence("hello4",1)
-    sd2.request_sequence("hello5",2)
-    sd.request_sequence("hello6",1)
+    sd2.request_sequence("hello4",1) # group 1, seq: 2 for g1
+    sd2.request_sequence("hello5",2) # group 2, seq: 1 for g2
+    sd.request_sequence("hello6",1) # group 1, seq: 3 for g1
